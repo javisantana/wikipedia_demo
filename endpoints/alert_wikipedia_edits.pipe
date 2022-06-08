@@ -1,11 +1,17 @@
 NODE last_minute_edit
 SQL >
+    %
     SELECT count() edit_count FROM edit_events
+    {% if defined(timestamp) %}
+    where meta_dt > toDateTime({{timestamp}}) - interval 1 minute
+    {% else %}
     where meta_dt > now() - interval 1 minute
+    {% end %}
 
 NODE endpoint
 SQL >
-    SELECT edit_count > 800 ? 'ok': 'error' as status
+    %
+    SELECT edit_count > {{Int32(threshold, 800)}} ? 'ok': 'error' as status
     FROM last_minute_edit
 
 

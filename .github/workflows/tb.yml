@@ -1,0 +1,40 @@
+
+name: tinybird
+
+on:
+  push:
+
+jobs:
+  tinybird_tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+        architecture: 'x64'
+
+    - name: pip packages
+      run: pip install tinybird-cli
+
+    - name: version
+      run: tb --version && tb workspace current
+      env:
+        TB_TOKEN: ${{ secrets.tb_token }}
+
+    - name: drop-prev-resources
+      run: tb workspace clear --yes
+      env:
+        TB_TOKEN: ${{ secrets.tb_token }}
+
+    - name: push-project
+      run: tb push --fixtures
+      env:
+        TB_TOKEN: ${{ secrets.tb_token }}
+
+    - name: tests
+      #run: python -m unittest tests/*.py
+      run: tb test run
+      env:
+        TB_TOKEN: ${{ secrets.tb_token }}
+
