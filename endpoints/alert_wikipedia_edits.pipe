@@ -1,0 +1,11 @@
+NODE last_minute_edit
+SQL >
+    SELECT count() edit_count FROM edit_events
+    where meta_dt > now() - interval 1 minute
+
+NODE endpoint
+SQL >
+    SELECT edit_count > 800 ? 'ok': 'error' as status
+    FROM last_minute_edit
+
+
