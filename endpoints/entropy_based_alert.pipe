@@ -1,0 +1,55 @@
+NODE edits_last_day
+SQL >
+
+    SELECT toStartOfFiveMinute(meta_dt) ts, meta_domain, count() c FROM change_events
+    where meta_dt between '2022-05-30 10:00:00' and '2022-05-31 23:00:00'
+    --where meta_dt > now()  - interval 15 minute
+    group by ts, meta_domain
+    order by ts, meta_domain
+
+
+
+NODE entropy
+SQL >
+
+    SELECT ts,
+        groupArray(meta_domain) b,
+        groupArray(c) cc,
+        arraySum(cc) total, 
+        arrayMap(x -> x/total, cc) probs,
+        -arraySum(arrayMap(P -> P * log(P), probs)) E
+    FROM edits_last_day
+    group by ts
+    order by ts
+
+
+
+NODE block_max_min
+SQL >
+
+    SELECT ts, E,
+     avg(E) OVER(ORDER BY ts ROWS BETWEEN 3 PRECEDING AND CURRENT ROW ) mv_avg,
+     max(E) OVER(ORDER BY ts ROWS BETWEEN 1 PRECEDING AND CURRENT ROW ) max_in_block,
+     min(E) OVER(ORDER BY ts ROWS BETWEEN 1 PRECEDING AND CURRENT ROW ) min_in_block
+    FROM entropy
+
+
+
+NODE alert_trigger
+SQL >
+
+    SELECT ts, E, max_in_block - min_in_block change, change > 0.4 ? 1: 0 alert
+    FROM block_max_min
+
+
+
+NODE endpoint
+DESCRIPTION >
+    get the just the last one
+
+SQL >
+
+    SELECT change > 0.4 ? 'error': 'ok' status FROM alert_trigger 
+    order by ts desc limit 1
+
+

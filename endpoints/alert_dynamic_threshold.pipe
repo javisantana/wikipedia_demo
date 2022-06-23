@@ -1,0 +1,48 @@
+NODE historic
+SQL >
+
+    SELECT toDate(meta_dt) day, count() event_count FROM change_events
+        where 
+         meta_dt between 
+            now() - interval 1 minute - interval 7 day
+            and now() - interval 8 day
+         or 
+            meta_dt between 
+            now() - interval 1 minute - interval 7*2 day
+            and now() - interval 14 day
+         or 
+            meta_dt between 
+            now() - interval 1 minute - interval 7*3 day
+            and now() - interval 7*3 day
+        group by day
+
+
+
+NODE threshold_calc
+SQL >
+
+    with quantiles(0.25, 0.75)(event_count) as q,
+          ceil(q[1] - 1.5 * (q[2] - q[1])) as min_iqr
+    SELECT 
+          arrayMax([min_iqr, 1]) threshold FROM historic
+
+
+
+NODE count_last_minute
+SQL >
+
+    SELECT count() event_count FROM change_events
+        where 
+         meta_dt between 
+            now() - interval 1 minute
+            and now()
+
+
+
+NODE endpoint
+SQL >
+
+    with (select * from threshold_calc) as th_level
+    SELECT event_count > th_level ? 'ok': 'error' status, th_level, event_count FROM count_last_minute
+
+
